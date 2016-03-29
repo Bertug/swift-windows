@@ -18,13 +18,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#if defined(_MSC_VER)
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
+#if !defined(_MSC_VER)
 #include <pthread.h>
+#endif
 #include <stdarg.h>
 #include "swift/Runtime/Debug.h"
 #include "swift/Basic/Demangle.h"
+#if !defined(_MSC_VER)
 #include <cxxabi.h>
-#if !defined(__CYGWIN__) && !defined(__ANDROID__)
+#endif
+#if !defined(__CYGWIN__) && !defined(__ANDROID__) && !defined(_MSC_VER)
 // execinfo.h is not available on Android. Checks in this file ensure that
 // fatalError behaves as expected, but without stack traces.
 #include <execinfo.h>
@@ -40,7 +48,7 @@ enum: uint32_t {
 };
 } // end namespace FatalErrorFlags
 
-#if !defined(__CYGWIN__) && !defined(__ANDROID__)
+#if !defined(__CYGWIN__) && !defined(__ANDROID__) && !defined(_MSC_VER)
 LLVM_ATTRIBUTE_ALWAYS_INLINE
 static bool
 isIdentifier(char c)
@@ -203,11 +211,16 @@ reportOnCrash(uint32_t flags, const char *message)
 static void
 reportNow(uint32_t flags, const char *message)
 {
+#if defined(_MSC_VER)
+#define STDERR_FILENO 2
+  _write(STDERR_FILENO, message, strlen(message));
+#else
   write(STDERR_FILENO, message, strlen(message));
+#endif
 #ifdef __APPLE__
   asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", message);
 #endif
-#if !defined(__CYGWIN__) && !defined(__ANDROID__)
+#if !defined(__CYGWIN__) && !defined(__ANDROID__) && !defined(_MSC_VER)
   if (flags & FatalErrorFlags::ReportBacktrace) {
     fputs("Current stack trace:\n", stderr);
     int count = 0;
@@ -237,7 +250,13 @@ swift::fatalError(uint32_t flags, const char *format, ...)
   va_start(args, format);
 
   char *log;
+#if defined(_MSC_VER)
+  int len = _vscprintf(format, args) + 1;
+  log = reinterpret_cast<char *>(malloc(len));
+  vsprintf(log, format, args);
+#else
   vasprintf(&log, format, args);
+#endif
 
   swift_reportError(flags, log);
   abort();

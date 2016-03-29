@@ -12,11 +12,16 @@
 
 #include <random>
 #include <type_traits>
+#if defined(_MSC_VER)
+#include <io.h>
+#else
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#endif
 #include "../SwiftShims/LibcShims.h"
+#include "llvm/Support/DataTypes.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static_assert(std::is_same<ssize_t, swift::__swift_ssize_t>::value,
               "__swift_ssize_t must be defined as equivalent to ssize_t");
@@ -25,7 +30,13 @@ namespace swift {
 
 void _swift_stdlib_free(void *ptr) { free(ptr); }
 
-int _swift_stdlib_putchar_unlocked(int c) { return putchar_unlocked(c); }
+int _swift_stdlib_putchar_unlocked(int c) {
+#if defined(_MSC_VER)
+  return _putc_nolock(c, stdout);
+#else
+  return putchar_unlocked(c);
+#endif
+}
 
 __swift_size_t _swift_stdlib_fwrite_stdout(const void *ptr, __swift_size_t size,
                                            __swift_size_t nitems) {
@@ -56,6 +67,11 @@ size_t _swift_stdlib_malloc_size(const void *ptr) { return malloc_size(ptr); }
 #include <malloc.h>
 size_t _swift_stdlib_malloc_size(const void *ptr) {
   return malloc_usable_size(const_cast<void *>(ptr));
+}
+#elif defined(_MSC_VER)
+#include <malloc.h>
+size_t _swift_stdlib_malloc_size(const void *ptr) {
+  return _msize(const_cast<void *>(ptr));
 }
 #elif defined(__FreeBSD__)
 #include <malloc_np.h>

@@ -18,7 +18,8 @@ if(SWIFT_RUNTIME_ENABLE_LEAK_CHECKER)
 endif()
 
 set(swift_runtime_port_sources)
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "CYGWIN")
+if(("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows") OR
+   ("${CMAKE_SYSTEM_NAME}" STREQUAL "CYGWIN"))
   set(swift_runtime_port_sources
       CygwinPort.cpp)
 endif()
